@@ -25,16 +25,16 @@ async function runBot() {
 
         console.log("Asosiy ssilkaga kirilmoqda...");
         
-        // domcontentloaded - sahifa ochilishi bilanoq darhol to'xtaydi (oxirigacha sakrab ketishiga yo'l qo'ymaydi)
+        // domcontentloaded - birinchi sahifani (tugmali sahifani) ushlab qolish uchun
         await page.goto('https://promo-bot-ucad.onrender.com/r/JT_suzcNFZWTL8QfPWCD6Q', { 
             waitUntil: 'domcontentloaded', 
             timeout: 60000 
         });
 
-        // 1-sahifa (tugmalar turgan sahifa) to'liq yuklanishi uchun qisqa kutish
+        // Sahifa yuklanishi uchun qisqa kutish
         await new Promise(r => setTimeout(r, 3000));
 
-        // 1. BEFORE: Boshlang'ich tugmali sahifani ushlab qolib saqlash
+        // 1. BEFORE: Boshlang'ich tugmali sahifani saqlash
         await page.screenshot({ path: '1_before.png', fullPage: true });
         console.log("1_before.png (tugmali sahifa) muvaffaqiyatli saqlandi.");
 
@@ -53,22 +53,10 @@ async function runBot() {
 
         if (clicked) {
             console.log("Tugma bosildi! Play Marketga o'tishi kutilmoqda...");
-            // Play Market sahifasi ochilishi uchun yetarlicha vaqt beramiz
             await new Promise(r => setTimeout(r, 7000));
         } else {
             console.log("Xatolik: Tugma topilmadi!");
         }
 
-        // Play Marketga o'tgan oynani aniqlash
-        const pages = await browser.pages();
-        const activePage = pages.length > 1 ? pages[pages.length - 1] : page;
-
-        console.log("Hozirgi sahifa URL manzili:", activePage.url());
-
-        // 2. MIDDLE: Play Market sahifasini saqlash
-        try {
-            await activePage.screenshot({ path: '2_middle.png', fullPage: true });
-            console.log("2_middle.png (Play Market sahifasi) saqlandi.");
-        } catch (e) {
-            console.log("2-rasmni olishda xato:", e.message
-                        
+        // Play Marketga
+    
