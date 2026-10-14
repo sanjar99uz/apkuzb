@@ -28,7 +28,7 @@ async function runBot() {
             timeout: 60000 
         });
 
-        // 1. BEFORE: Birinchi sahifa ochilgandagi holat skrinshoti
+        // 1. BEFORE: Asosiy sahifa skrinshoti
         await page.screenshot({ path: '1_before.png', fullPage: true });
         console.log("1_before.png saqlandi.");
 
@@ -44,25 +44,22 @@ async function runBot() {
             ]);
 
             const activePage = targetPage || page;
-            await new Promise(r => setTimeout(r, 4000));
-            console.log("Hozirgi sahifa manzili:", activePage.url());
+            await new Promise(r => setTimeout(r, 5000));
+            console.log("O'tilgan sahifa manzili:", activePage.url());
 
-            // 2. MIDDLE: Tugmadan keyin ochilgan/yo'naltirilgan sahifa skrinshoti
+            // 2. MIDDLE: Yo'naltirilgan sahifa skrinshoti
             await activePage.screenshot({ path: '2_middle.png', fullPage: true });
             console.log("2_middle.png saqlandi.");
 
-            // Ochilgan oynadan Install / O'rnatish tugmasini bosishga urinish
             try {
                 const [installBtn] = await activePage.$x("//button[contains(., 'Install') or contains(., 'O\\'rnatish') or contains(., 'Установить') or contains(@aria-label, 'Install')]");
                 if (installBtn) {
                     await installBtn.click();
                     console.log("'Install' / 'O'rnatish' tugmasi bosildi.");
                     await new Promise(r => setTimeout(r, 3000));
-                } else {
-                    console.log("Qo'shimcha Install tugmasi topilmadi yoki avtomatik yo'naltirildi.");
                 }
             } catch (err) {
-                console.log("Install tugmasini bosishda muammo bo'lmadi.");
+                console.log("Qo'shimcha Install tugmasi bosilmadi yoki talab qilinmadi.");
             }
 
             // 3. AFTER: Yakuniy holat skrinshoti
@@ -70,12 +67,12 @@ async function runBot() {
             console.log("3_after.png saqlandi.");
 
         } else {
-            console.error("Xatolik: 'Нафақа ёшига етмаган фуқаро' tugmasi topilmadi!");
+            console.error("Xatolik: Tugma topilmadi!");
             await page.screenshot({ path: '3_after.png', fullPage: true });
         }
 
     } catch (error) {
-        console.error("Skriptni bajarishda xatolik yuz berdi:", error);
+        console.error("Skriptni bajarishda xatolik:", error);
     } finally {
         await browser.close();
         console.log("Brauzer yopildi.");
