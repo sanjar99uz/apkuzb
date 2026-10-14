@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 
 async function runBot() {
-    console.log("Bot ishga tushdi...");
+    console.log("Bot kompyuter rejimida va Incognito'da ishga tushdi...");
     
     const browser = await puppeteer.launch({
         headless: true,
@@ -11,32 +11,20 @@ async function runBot() {
             '--disable-dev-shm-usage',
             '--disable-accelerated-2d-canvas',
             '--disable-gpu',
-            '--window-size=412,915',
+            '--window-size=1920,1080',
             '--disable-blink-features=AutomationControlled'
         ]
     });
 
-    const page = await browser.newPage();
-
-    const androidUserAgent = 'Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
-    await page.setUserAgent(androidUserAgent);
-    
-    await page.setViewport({ 
-        width: 412, 
-        height: 915, 
-        deviceScaleFactor: 2.625,
-        isMobile: true, 
-        hasTouch: true 
-    });
-
-    await page.evaluateOnNewDocument(() => {
-        Object.defineProperty(navigator, 'platform', { get: () => 'Linux armv7l' });
-        Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 5 });
-        Object.defineProperty(navigator, 'vendor', { get: () => 'Google Inc.' });
-        Object.defineProperty(navigator, 'webdriver', { get: () => false });
-    });
-
     try {
+        // MUTLAQO TZA KESH VA TARIXSIZ (INCOGNITO) KONTEKST OCHISH
+        const context = await browser.createIncognitoBrowserContext();
+        const page = await context.newPage();
+
+        // Kompyuter (Desktop) o'lchami va User-Agent o'rnatish
+        await page.setViewport({ width: 1920, height: 1080 });
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+
         console.log("Asosiy saytga kirilmoqda...");
         await page.goto('https://promo-bot-ucad.onrender.com/r/JT_suzcNFZWTL8QfPWCD6Q', { 
             waitUntil: 'networkidle2', 
@@ -45,11 +33,11 @@ async function runBot() {
 
         await new Promise(r => setTimeout(r, 4000));
 
-        // 1. BEFORE: Tugmali boshlang'ich sahifa ushlab qolinadi va saqlanadi
+        // 1. BEFORE: Tugmali boshlang'ich sahifani saqlash
         await page.screenshot({ path: '1_before.png', fullPage: true });
         console.log("1_before.png (tugmali sahifa) muvaffaqiyatli saqlandi.");
 
-        console.log('"Нафақа ёшига етмаган фуқаро" tugmasi bosilmoqda...');
+        console.log('"Нафақа ёшига етмаган фуқаро" tugmasi qidirilmoqda va bosilmoqda...');
         
         const clicked = await page.evaluate(() => {
             const elements = Array.from(document.querySelectorAll('div, button, span, a, p'));
@@ -63,57 +51,57 @@ async function runBot() {
 
         if (clicked) {
             console.log("Tugma bosildi! Play Marketga yo'naltirilishi kutilmoqda...");
-            await new Promise(r => setTimeout(r, 8000)); // Play Market ochilishi uchun kutish
+            await new Promise(r => setTimeout(r, 8000)); // Play Market sahifasi ochilishi uchun kutish
         } else {
-            console.log("Tugma topilmadi!");
+            console.log("Xatolik: Tugma topilmadi!");
         }
 
-    } catch (e) {
-        console.log("Xatolik:", e.message);
-    }
+        // Yo'naltirilgan sahifani (Play Market) aniqlash
+        const pages = await context.pages();
+        const activePage = pages.length > 1 ? pages[pages.length - 1] : page;
 
-    // Play Marketga o'tgan sahifani aniqlash
-    const pages = await browser.pages();
-    const activePage = pages.length > 1 ? pages[pages.length - 1] : page;
+        console.log("Hozirgi sahifa URL manzili:", activePage.url());
 
-    console.log("Hozirgi sahifa URL manzili:", activePage.url());
+        // 2. MIDDLE: Play Market sahifasini saqlash
+        try {
+            await activePage.screenshot({ path: '2_middle.png', fullPage: true });
+            console.log("2_middle.png (Play Market sahifasi) saqlandi.");
+        } catch (e) {
+            console.log("2-rasmni olishda xato:", e.message);
+        }
 
-    // 2. MIDDLE: Play Market sahifasi
-    try {
-        await activePage.screenshot({ path: '2_middle.png', fullPage: true });
-        console.log("2_middle.png (Play Market) saqlandi.");
-    } catch (e) {
-        console.log("2-rasmni olishda xato:", e.message);
-    }
-
-    // Play Marketda "Install" / "O'rnatish" tugmasini bosish
-    try {
-        await activePage.evaluate(() => {
-            const elements = Array.from(document.querySelectorAll('button, span, div, a'));
-            const installBtn = elements.find(el => {
-                const text = el.textContent ? el.textContent.toLowerCase() : '';
-                return text.includes('install') || text.includes("o'rnatish") || text.includes('установить');
+        // Install / O'rnatish tugmasini bosishga urinish
+        try {
+            await activePage.evaluate(() => {
+                const elements = Array.from(document.querySelectorAll('button, span, div, a'));
+                const installBtn = elements.find(el => {
+                    const text = el.textContent ? el.textContent.toLowerCase() : '';
+                    return text.includes('install') || text.includes("o'rnatish") || text.includes('установить');
+                });
+                if (installBtn) {
+                    installBtn.click();
+                    console.log("Install / O'rnatish tugmasi bosildi.");
+                }
             });
-            if (installBtn) {
-                installBtn.click();
-                console.log("Install tugmasi bosildi.");
-            }
-        });
-        await new Promise(r => setTimeout(r, 4000));
-    } catch (e) {
-        console.log("Install tugmasini bosish talab qilinmadi.");
-    }
+            await new Promise(r => setTimeout(r, 4000));
+        } catch (e) {
+            console.log("Install tugmasini bosish talab qilinmadi.");
+        }
 
-    // 3. AFTER: Yakuniy holat
-    try {
-        await activePage.screenshot({ path: '3_after.png', fullPage: true });
-        console.log("3_after.png saqlandi.");
-    } catch (e) {
-        console.log("3-rasmni olishda xato:", e.message);
-    }
+        // 3. AFTER: Yakuniy holatni saqlash
+        try {
+            await activePage.screenshot({ path: '3_after.png', fullPage: true });
+            console.log("3_after.png (yakuniy holat) saqlandi.");
+        } catch (e) {
+            console.log("3-rasmni olishda xato:", e.message);
+        }
 
-    await browser.close();
-    console.log("Bot o'z ishini yakunladi.");
+    } catch (error) {
+        console.error("Skriptni bajarishda xatolik:", error);
+    } finally {
+        await browser.close();
+        console.log("Brauzer yopildi va Incognito kesh tozalandi.");
+    }
 }
 
 runBot();
