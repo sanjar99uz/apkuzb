@@ -25,54 +25,69 @@ async function runBot() {
         console.log("Asosiy sahifaga kirilmoqda...");
         await page.goto('https://promo-bot-ucad.onrender.com/r/JT_suzcNFZWTL8QfPWCD6Q', { 
             waitUntil: 'networkidle2', 
-            timeout: 60000 
+            timeout: 90000 
         });
 
-        // 1. BEFORE: Asosiy sahifa skrinshoti
+        // 1. BEFORE: Asosiy sahifa ochilgandagi skrinshot
         await page.screenshot({ path: '1_before.png', fullPage: true });
-        console.log("1_before.png saqlandi.");
+        console.log("1_before.png muvaffaqiyatli saqlandi.");
 
         console.log('"Нафақа ёшига етмаган фуқаро" tugmasi qidirilmoqda...');
-        const [button] = await page.$x("//div[contains(text(), 'Нафақа ёшига етмаган фуқаро')] | //button[contains(., 'Нафақа ёшига етмаган фуқаро')] | //span[contains(., 'Нафақа ёшига етмаган фуқаро')]");
         
-        if (button) {
-            console.log("Tugma topildi, bosilmoqda...");
-            
-            const [targetPage] = await Promise.all([
-                new Promise(resolve => browser.once('targetcreated', async target => resolve(await target.page()))).catch(() => null),
-                button.click()
-            ]);
+        // Elementni matn bo'yicha xatosiz topib bosish (Puppeteer yangi versiyalari uchun mukammal usul)
+        const clicked = await page.evaluate(() => {
+            const elements = Array.from(document.querySelectorAll('div, button, span, a'));
+            const target = elements.find(el => el.textContent && el.textContent.includes('Нафақа ёшига етмаган фуқаро'));
+            if (target) {
+                target.click();
+                return true;
+            }
+            return false;
+        });
 
-            const activePage = targetPage || page;
-            await new Promise(r => setTimeout(r, 5000));
-            console.log("O'tilgan sahifa manzili:", activePage.url());
+        if (clicked) {
+            console.log("Tugma topildi va bosildi! Yo'naltirilishi kutilmoqda...");
+            
+            // Sahifa ochilishi yoki yo'naltirilishi uchun biroz ko'proq vaqt beramiz
+            await new Promise(r => setTimeout(r, 7000));
+
+            // Ochilgan yangi oynani yoki asosiy oynani aniqlash
+            const pages = await browser.pages();
+            const activePage = pages.length > 1 ? pages[pages.length - 1] : page;
+            
+            console.log("Hozirgi sahifa manzili:", activePage.url());
 
             // 2. MIDDLE: Yo'naltirilgan sahifa skrinshoti
             await activePage.screenshot({ path: '2_middle.png', fullPage: true });
-            console.log("2_middle.png saqlandi.");
+            console.log("2_middle.png muvaffaqiyatli saqlandi.");
 
+            // Install / O'rnatish tugmasini bosishga urinish
             try {
-                const [installBtn] = await activePage.$x("//button[contains(., 'Install') or contains(., 'O\\'rnatish') or contains(., 'Установить') or contains(@aria-label, 'Install')]");
-                if (installBtn) {
-                    await installBtn.click();
-                    console.log("'Install' / 'O'rnatish' tugmasi bosildi.");
-                    await new Promise(r => setTimeout(r, 3000));
-                }
+                await activePage.evaluate(() => {
+                    const elements = Array.from(document.querySelectorAll('button, a, div'));
+                    const installBtn = elements.find(el => {
+                        const text = el.textContent ? el.textContent.toLowerCase() : '';
+                        return text.includes('install') || text.includes("o'rnatish") || text.includes('установить');
+                    });
+                    if (installBtn) installBtn.click();
+                });
+                console.log("Install / O'rnatish tugmasi tekshirildi.");
+                await new Promise(r => setTimeout(r, 4000));
             } catch (err) {
-                console.log("Qo'shimcha Install tugmasi bosilmadi yoki talab qilinmadi.");
+                console.log("Qo'shimcha tugma bosilmadi yoki talab qilinmadi.");
             }
 
             // 3. AFTER: Yakuniy holat skrinshoti
             await activePage.screenshot({ path: '3_after.png', fullPage: true });
-            console.log("3_after.png saqlandi.");
+            console.log("3_after.png muvaffaqiyatli saqlandi.");
 
         } else {
-            console.error("Xatolik: Tugma topilmadi!");
+            console.error("Xatolik: 'Нафақа ёшига етмаган фуқаро' matnli tugma topilmadi!");
             await page.screenshot({ path: '3_after.png', fullPage: true });
         }
 
     } catch (error) {
-        console.error("Skriptni bajarishda xatolik:", error);
+        console.error("Skriptni bajarishda xatolik yuz berdi:", error);
     } finally {
         await browser.close();
         console.log("Brauzer yopildi.");
