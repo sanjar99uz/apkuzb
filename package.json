@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node bot.js"
   },
-  dependencies": {
+  "dependencies": {
     "puppeteer": "^22.0.0"
   }
 }
