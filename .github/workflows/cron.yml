@@ -24,12 +24,10 @@ jobs:
       - name: Botni ishga tushirish
         run: npm start
 
-      - name: Skrinshotlarni saqlash
+      - name: Skrinshotlarni GitHub'ga saqlash (Artifacts)
         uses: actions/upload-artifact@v4
         with:
           name: bot-screenshots
-          path: |
-            1_before.png
-            2_middle.png
-            3_after.png
-            
+          path: ./*.png
+          if-no-files-found: ignore
+          
