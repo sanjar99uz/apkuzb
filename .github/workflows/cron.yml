@@ -3,7 +3,7 @@ name: Run Click Bot
 on:
   schedule:
     - cron: '0 * * * *'
-  workflow_dispatch: # Qo'lda ishga tushirish uchun
+  workflow_dispatch:
 
 jobs:
   run-bot:
@@ -24,9 +24,12 @@ jobs:
       - name: Botni ishga tushirish
         run: npm start
 
-      - name: Skrinshotlarni yuklab olish uchun saqlash (Artifacts)
+      - name: Skrinshotlarni saqlash
         uses: actions/upload-artifact@v4
         with:
           name: bot-screenshots
-          path: *.png
-          
+          path: |
+            1_before.png
+            2_middle.png
+            3_after.png
+            
