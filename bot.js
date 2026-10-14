@@ -17,11 +17,9 @@ async function runBot() {
     });
 
     try {
-        // MUTLAQO TZA KESH VA TARIXSIZ (INCOGNITO) KONTEKST OCHISH
         const context = await browser.createIncognitoBrowserContext();
         const page = await context.newPage();
 
-        // Kompyuter (Desktop) o'lchami va User-Agent o'rnatish
         await page.setViewport({ width: 1920, height: 1080 });
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
@@ -51,13 +49,13 @@ async function runBot() {
 
         if (clicked) {
             console.log("Tugma bosildi! Play Marketga yo'naltirilishi kutilmoqda...");
-            await new Promise(r => setTimeout(r, 8000)); // Play Market sahifasi ochilishi uchun kutish
+            await new Promise(r => setTimeout(r, 8000));
         } else {
             console.log("Xatolik: Tugma topilmadi!");
         }
 
-        // Yo'naltirilgan sahifani (Play Market) aniqlash
-        const pages = await context.pages();
+        // To'g'rilangan joy: browser.pages() orqali ochilgan oynani topish
+        const pages = await browser.pages();
         const activePage = pages.length > 1 ? pages[pages.length - 1] : page;
 
         console.log("Hozirgi sahifa URL manzili:", activePage.url());
