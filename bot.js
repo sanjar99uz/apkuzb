@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 
 async function runBot() {
-    console.log("Bot ishga tushdi...");
+    console.log("Bot Android rejimida ishga tushdi...");
     
     const browser = await puppeteer.launch({
         headless: true,
@@ -11,19 +11,31 @@ async function runBot() {
             '--disable-dev-shm-usage',
             '--disable-accelerated-2d-canvas',
             '--disable-gpu',
-            '--window-size=390,844',
-            '--disable-blink-features=AutomationControlled' // Bot ekanligini yashirish uchun
+            '--window-size=412,915',
+            '--disable-blink-features=AutomationControlled'
         ]
     });
 
     const page = await browser.newPage();
 
-    // Haqiqiy mobil qurilma brauzeridek ko'rsatish
-    await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1');
-    await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
+    // Haqiqiy Android qurilma va Chrome brauzer User-Agent'i
+    const androidUserAgent = 'Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
+    await page.setUserAgent(androidUserAgent);
+    
+    // Android mobil ekran o'lchami va sensorli ekran sozlamasi
+    await page.setViewport({ 
+        width: 412, 
+        height: 915, 
+        deviceScaleFactor: 2.625,
+        isMobile: true, 
+        hasTouch: true 
+    });
 
-    // Bot ekanligini fosh qiluvchi xususiyatlarni olib tashlash
+    // Server Linux ekanligimizni sezmasligi uchun navigator xususiyatlarini o'zgartiramiz
     await page.evaluateOnNewDocument(() => {
+        Object.defineProperty(navigator, 'platform', { get: () => 'Linux armv7l' });
+        Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 5 });
+        Object.defineProperty(navigator, 'vendor', { get: () => 'Google Inc.' });
         Object.defineProperty(navigator, 'webdriver', { get: () => false });
     });
 
@@ -34,16 +46,14 @@ async function runBot() {
             timeout: 60000 
         });
 
-        // Sahifa to'liq ochilishi uchun biroz kutamiz
-        await new Promise(r => setTimeout(r, 4000));
+        await new Promise(r => setTimeout(r, 3000));
 
-        // 1. BEFORE: Asosiy sayt ochilgan holat
+        // 1. BEFORE: Asosiy sahifa
         await page.screenshot({ path: '1_before.png', fullPage: true });
         console.log("1_before.png saqlandi.");
 
-        console.log('"Нафақа ёшига етмаган фуқаро" tugmasi qidirilmoqda...');
+        console.log('"Нафақа ёшига етмаган фуқаро" tugmasi bosilmoqda...');
         
-        // Tugmani bosish
         const clicked = await page.evaluate(() => {
             const elements = Array.from(document.querySelectorAll('div, button, span, a, p'));
             const target = elements.find(el => el.textContent && el.textContent.trim().includes('Нафақа ёшига етмаган фуқаро'));
@@ -55,24 +65,24 @@ async function runBot() {
         });
 
         if (clicked) {
-            console.log("Tugma muvaffaqiyatli bosildi! Yo'naltirish kutilmoqda...");
-            // Havola ochilishi va sahifa o'zgarishi uchun 7 soniya kutamiz
-            await new Promise(r => setTimeout(r, 7000));
+            console.log("Tugma bosildi! Play Marketga yo'naltirilishi kutilmoqda...");
+            // Yo'naltirish (redirection) sodir bo'lishi uchun yetarlicha vaqt beramiz
+            await new Promise(r => setTimeout(r, 8000));
         } else {
             console.log("Tugma topilmadi!");
         }
 
     } catch (e) {
-        console.log("Jarayonda xatolik yuz berdi:", e.message);
+        console.log("Xatolik:", e.message);
     }
 
-    // Sahifalar ro'yxatini olamiz (agar yangi oyna ochilgan bo'lsa)
+    // Yangi ochilgan sahifani yoki Play Marketga o'tgan oynani aniqlash
     const pages = await browser.pages();
     const activePage = pages.length > 1 ? pages[pages.length - 1] : page;
 
-    console.log("Hozirgi ochiq sahifa manzili (URL):", activePage.url());
+    console.log("Hozirgi sahifa URL manzili:", activePage.url());
 
-    // 2. MIDDLE: Yo'naltirilgan sahifa holati
+    // 2. MIDDLE: Yo'naltirilgan sahifa (Play Market)
     try {
         await activePage.screenshot({ path: '2_middle.png', fullPage: true });
         console.log("2_middle.png saqlandi.");
@@ -80,19 +90,22 @@ async function runBot() {
         console.log("2-rasmni olishda xato:", e.message);
     }
 
-    // Install / O'rnatish tugmasini qidirib bosish
+    // Play Market sahifasida "Install" yoki "O'rnatish" tugmasini bosish
     try {
         await activePage.evaluate(() => {
-            const elements = Array.from(document.querySelectorAll('button, a, div, span'));
+            const elements = Array.from(document.querySelectorAll('button, span, div, a'));
             const installBtn = elements.find(el => {
                 const text = el.textContent ? el.textContent.toLowerCase() : '';
                 return text.includes('install') || text.includes("o'rnatish") || text.includes('установить');
             });
-            if (installBtn) installBtn.click();
+            if (installBtn) {
+                installBtn.click();
+                console.log("Install tugmasi bosildi.");
+            }
         });
         await new Promise(r => setTimeout(r, 4000));
     } catch (e) {
-        console.log("Install tugmasi topilmadi yoki bosilmadi.");
+        console.log("Install tugmasini bosish talab qilinmadi.");
     }
 
     // 3. AFTER: Yakuniy holat
