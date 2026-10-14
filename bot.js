@@ -15,8 +15,7 @@ async function runBot() {
         ]
     });
 
-    const context = await browser.createIncognitoBrowserContext();
-    const page = await context.newPage();
+    const page = await browser.newPage();
 
     await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1');
     await page.setViewport({ width: 390, height: 844, isMobile: true });
@@ -31,7 +30,7 @@ async function runBot() {
         console.log("Sahifaga kirishda muammo bo'ldi, lekin davom etamiz:", e.message);
     }
 
-    // 1. BEFORE: Har qanday holatda ham 1-rasmni saqlash
+    // 1. BEFORE: 1-rasmni saqlash
     try {
         await page.screenshot({ path: '1_before.png', fullPage: true });
         console.log("1_before.png saqlandi.");
