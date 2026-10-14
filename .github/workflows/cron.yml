@@ -2,36 +2,9 @@ name: Run Click Bot
 
 on:
   schedule:
-    # Har соатда bir marta ishga tushirish (xohishga ko'ra o'zgartirishingiz mumkin)
+    # Har soatda bir marta ishga tushirish
     - cron: '0 * * * *'
-  workflow_dispatch: // Qo'lda GitHub'dan tugmani bosib ishga tushirish uchun ham
-
-jobs:
-  run-bot:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Repository'ni yuklab olish
-        uses: actions/checkout@v4
-
-      - name: Node.js muhitini o'rnatish
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Kutubxonalarni o'rnatish
-        run: npm install
-
-      - name: Botni ishga tushirish
-        run: npm start
-        
-name: Run Click Bot
-
-on:
-  schedule:
-    # Har soatda bir marta ishga tushirish (xohishga ko'ra o'zgartirishingiz mumkin)
-    - cron: '0 * * * *'
-  workflow_dispatch: # Qo'lda GitHub'dan tugmani bosib ishga tushirish uchun ham
+  workflow_dispatch: # Qo'lda GitHub'dan ishga tushirish uchun
 
 jobs:
   run-bot:
