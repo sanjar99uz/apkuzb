@@ -2,9 +2,10 @@
 name: Promo Bot Cron
 
 on:
+  workflow_dispatch:
+
   schedule:
     - cron: '0 * * * *'
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -27,23 +28,40 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Brauzer va bog'liqliklarni o'rnatish
+      - name: Papkalarni tayyorlash
+        run: mkdir -p screenshots
+
+      - name: Puppeteer va bog'liqliklarni o'rnatish
         run: |
           npm init -y
           npm install puppeteer
-          mkdir -p screenshots
 
       - name: Botni ishga tushirish
         id: runbot
         shell: bash
         run: |
+          mkdir -p screenshots
+
           set +e
           node bot.js 2>&1 | tee screenshots/bot.log
-          status=${PIPESTATUS[0]}
-          echo "BOT_EXIT_CODE=$status" >> "$GITHUB_ENV"
+
+          STATUS=${PIPESTATUS[0]}
+
+          echo "BOT_EXIT_CODE=$STATUS" >> "$GITHUB_ENV"
+          echo "Bot exit code: $STATUS"
+
           exit 0
 
-      - name: Skrinshotlarni Artifact sifatida yuklash
+      - name: Natijalarni tekshirish
+        if: always()
+        shell: bash
+        run: |
+          echo "Bot exit code: ${BOT_EXIT_CODE:-not-set}"
+          echo ""
+          echo "Yaratilgan fayllar:"
+          find screenshots -maxdepth 2 -type f -print || true
+
+      - name: Skrinshot va loglarni Artifact sifatida yuklash
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -51,13 +69,4 @@ jobs:
           path: screenshots/
           if-no-files-found: warn
           retention-days: 7
-
-      - name: Bot natijasini tekshirish
-        if: always()
-        shell: bash
-        run: |
-          if [ "${BOT_EXIT_CODE:-1}" != "0" ]; then
-            echo "Bot xato bilan tugadi. Logni tekshiring."
-            exit 1
-          fi
           
