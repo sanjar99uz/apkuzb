@@ -1,16 +1,17 @@
-name: Run Click Bot
+name: Run Click Bot & Screenshots
 
 on:
   schedule:
+    # Har soatda bir marta avtomatik ishga tushadi
     - cron: '0 * * * *'
-  workflow_dispatch:
+  workflow_dispatch: # GitHub Actions bo'limidan qo'lda test qilib ko'rish uchun
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Repository'ni yuklab olish
+      - name: Repository kodini yuklab olish
         uses: actions/checkout@v4
 
       - name: Node.js muhitini o'rnatish
@@ -24,10 +25,13 @@ jobs:
       - name: Botni ishga tushirish
         run: npm start
 
-      - name: Skrinshotlarni GitHub'ga saqlash (Artifacts)
+      - name: Skrinshotlarni GitHub Artifacts sifatida saqlash
         uses: actions/upload-artifact@v4
         with:
           name: bot-screenshots
-          path: ./*.png
+          path: |
+            1_before.png
+            2_middle.png
+            3_after.png
           if-no-files-found: ignore
           
