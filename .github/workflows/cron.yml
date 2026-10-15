@@ -1,37 +1,47 @@
-name: Run Click Bot & Screenshots
+
+name: Promo Bot Cron
 
 on:
   schedule:
-    # Har soatda bir marta avtomatik ishga tushadi
     - cron: '0 * * * *'
-  workflow_dispatch: # GitHub Actions bo'limidan qo'lda test qilib ko'rish uchun
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: promo-bot-cron
+  cancel-in-progress: false
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
-      - name: Repository kodini yuklab olish
+      - name: Repository kodini olish
         uses: actions/checkout@v4
 
-      - name: Node.js muhitini o'rnatish
+      - name: Node.js o'rnatish
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
+          cache: 'npm'
 
-      - name: Kutubxonalarni o'rnatish
-        run: npm install
+      - name: Bog'liqliklarni o'rnatish
+        run: |
+          npm init -y
+          npm install puppeteer
 
       - name: Botni ishga tushirish
-        run: npm start
+        run: node bot.js
 
-      - name: Skrinshotlarni GitHub Artifacts sifatida saqlash
+      - name: Skrinshotlarni Artifact sifatida saqlash
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: bot-screenshots
-          path: |
-            1_before.png
-            2_middle.png
-            3_after.png
-          if-no-files-found: ignore
+          name: promo-bot-screenshots-${{ github.run_number }}
+          path: screenshots/*.png
+          if-no-files-found: warn
+          retention-days: 7
           
