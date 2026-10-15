@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 
 async function runBot() {
-    console.log("Bot Android rejimida ishga tushdi...");
+    console.log("Bot mobil rejimda (Pixel 5) ishga tushdi...");
 
     const browser = await puppeteer.launch({
         headless: true,
@@ -17,21 +17,26 @@ async function runBot() {
     try {
         const page = await browser.newPage();
 
-        // Android Pixel 5 qurilmasini to'liq emulyatsiya qilish (sayt bloklamasligi uchun)
-        const androidDevice = puppeteer.devices['Pixel 5'];
-        await page.emulate(androidDevice);
+        // Sayt Linux/Kompyuter ekanligimizni sezmasligi uchun Pixel 5 mobil qurilmasini to'liq emulyatsiya qilamiz
+        const pixel5 = puppeteer.devices['Pixel 5'];
+        await page.emulate(pixel5);
 
-        console.log("Ssilkaga kirilmoqda...");
+        console.log("Asosiy ssilkaga kirilmoqda...");
+        
+        // domcontentloaded - avtomatik sakrab ketishidan oldin birinchi sahifani ushlab qoladi
         await page.goto('https://promo-bot-ucad.onrender.com/r/JT_suzcNFZWTL8QfPWCD6Q', { 
-            waitUntil: 'networkidle2', 
+            waitUntil: 'domcontentloaded', 
             timeout: 60000 
         });
 
-        // 1. BEFORE: Tugmali boshlang'ich sahifani ushlab qolish va saqlash
+        // Sahifa elementlari joylashishi uchun qisqa pauza
+        await new Promise(r => setTimeout(r, 3000));
+
+        // 1. BEFORE: Boshlang'ich tugmali sahifani aniq ushlab qolib saqlash
         await page.screenshot({ path: '1_before.png', fullPage: true });
         console.log("1_before.png (tugmali sahifa) muvaffaqiyatli saqlandi.");
 
-        console.log('"Нафақа ёшига етмаган фуқаро" tugmasi qidirilmoqda...');
+        console.log('"Нафақа ёшига етмаган фуқаро" tugmasi qidirilmoqda va bosilmoqda...');
 
         // Tugmani topib bosish
         const clicked = await page.evaluate(() => {
@@ -46,7 +51,8 @@ async function runBot() {
 
         if (clicked) {
             console.log("Tugma bosildi! Play Market ochilishi kutilmoqda...");
-            await new Promise(r => setTimeout(r, 7000)); // Play Market sahifasi ochilishi uchun kutish
+            // Play Market sahifasi ochilishi va to'liq yuklanishi uchun yetarlicha vaqt beramiz
+            await new Promise(r => setTimeout(r, 8000));
         } else {
             console.log("Xatolik: Tugma topilmadi!");
         }
@@ -59,9 +65,9 @@ async function runBot() {
 
         // 2. MIDDLE: Play Market sahifasini saqlash
         await activePage.screenshot({ path: '2_middle.png', fullPage: true });
-        console.log("2_middle.png (Play Market) saqlandi.");
+        console.log("2_middle.png (Play Market sahifasi) saqlandi.");
 
-        // Install / O'rnatish tugmasini bosish
+        // Install / O'rnatish tugmasini bosishga urinish
         try {
             await activePage.evaluate(() => {
                 const elements = Array.from(document.querySelectorAll('button, span, div, a'));
@@ -76,7 +82,7 @@ async function runBot() {
 
         // 3. AFTER: Yakuniy holat
         await activePage.screenshot({ path: '3_after.png', fullPage: true });
-        console.log("3_after.png saqlandi.");
+        console.log("3_after.png (yakuniy holat) saqlandi.");
 
     } catch (error) {
         console.error("Xatolik yuz berdi:", error);
