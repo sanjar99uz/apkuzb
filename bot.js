@@ -3,117 +3,103 @@ const fs = require("fs");
 const path = require("path");
 
 const START_URL =
-  "https://promo-bot-ucad.onrender.com/r/JT_suzcNFZWTL8QfPWCD6Q";
+  "https://project.cybercontrol.uz/r/JT_suzcNFZWTL8QfPWCD6Q";
 
 const BUTTON_TEXT = "Нафақа ёшига етмаган фуқаро";
+const OUTPUT = path.join(__dirname, "screenshots");
 
-const SCREENSHOT_DIR = path.join(__dirname, "screenshots");
-
-const LOG_FILE = path.join(__dirname, "bot.log");
-const HTML_FILE = path.join(__dirname, "page.html");
+fs.mkdirSync(OUTPUT, { recursive: true });
 
 function log(...args) {
-  const message = args.join(" ");
-  console.log(message);
-
+  const line = args.join(" ");
+  console.log(line);
   fs.appendFileSync(
-    LOG_FILE,
-    `[${new Date().toISOString()}] ${message}\n`
+    path.join(__dirname, "bot.log"),
+    line + "\n"
   );
 }
 
-async function saveScreenshot(page, filename) {
-  const filepath = path.join(SCREENSHOT_DIR, filename);
-
+async function screenshot(page, name) {
   try {
     await page.screenshot({
-      path: filepath,
+      path: path.join(OUTPUT, name),
       fullPage: true,
-      captureBeyondViewport: false,
     });
-
-    log("SKRINSHOT SAQLANDI:", filepath);
-  } catch (error) {
-    log("SKRINSHOT XATOSI:", error.message);
-  }
-}
-
-async function saveHtml(page) {
-  try {
-    const html = await page.content();
-    fs.writeFileSync(HTML_FILE, html, "utf8");
-    log("HTML SAQLANDI:", HTML_FILE);
-  } catch (error) {
-    log("HTML SAQLASH XATOSI:", error.message);
+    log("SKRINSHOT:", name);
+  } catch (e) {
+    log("SKRINSHOT XATOSI:", e.message);
   }
 }
 
 async function main() {
-  fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
-  fs.writeFileSync(LOG_FILE, "", "utf8");
+  fs.writeFileSync(path.join(__dirname, "bot.log"), "");
 
-  let browser;
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+    ],
+  });
 
   try {
-    log("BOT ISHGA TUSHDI");
-    log("BOSHLANG‘ICH URL:", START_URL);
-
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-        "--window-size=1365,900",
-      ],
-    });
-
     const page = await browser.newPage();
 
     await page.setViewport({
       width: 1365,
       height: 900,
-      deviceScaleFactor: 1,
     });
 
-    page.setDefaultNavigationTimeout(45000);
-    page.setDefaultTimeout(15000);
+    page.setDefaultTimeout(20000);
 
-    // Brauzer navigatsiyalarini logga yozish.
+    let secondUrl = null;
+    let secondPageResponse = null;
+
+    // Har bir navigatsiya manzilini qayd etish.
     page.on("framenavigated", (frame) => {
       if (frame === page.mainFrame()) {
-        log("NAVIGATSIYA:", frame.url());
+        const url = frame.url();
+        log("NAVIGATSIYA:", url);
+
+        if (
+          url.includes("project.cybercontrol.uz/r/") &&
+          url.includes("/javob/") &&
+          url.endsWith("/yosh")
+        ) {
+          secondUrl = url;
+          log("IKKINCHI URL TOPILDI:", secondUrl);
+        }
       }
     });
 
-    page.on("requestfailed", (request) => {
-      log(
-        "SO‘ROV XATOSI:",
-        request.url(),
-        request.failure()?.errorText || ""
-      );
+    // Ikkinchi sahifaga tegishli javobni kuzatish.
+    page.on("response", (response) => {
+      const url = response.url();
+
+      if (
+        url.includes("project.cybercontrol.uz/r/") &&
+        url.includes("/javob/") &&
+        url.endsWith("/yosh")
+      ) {
+        secondPageResponse = response;
+        log("IKKINCHI SAHIFA STATUS:", response.status());
+        log("IKKINCHI SAHIFA URL:", url);
+      }
     });
 
-    page.on("pageerror", (error) => {
-      log("PAGE JAVASCRIPT XATOSI:", error.message);
-    });
-
-    // Play Market manzillariga ketayotgan brauzer so‘rovlarini
-    // to‘xtatishga urinadi. Bu server redirectini bekor qilish
-    // yoki oldingi sahifani tiklashni kafolatlamaydi.
+    // Uchinchi manzilga ketadigan so‘rovni to‘xtatishga urinish.
+    // Bu ikkinchi sahifani tiklashni kafolatlamaydi.
     await page.setRequestInterception(true);
 
     page.on("request", (request) => {
       const url = request.url();
 
-      const isPlayStore =
-        /^https?:\/\/play\.google\.com\//i.test(url) ||
-        /^https?:\/\/market\.android\.com\//i.test(url) ||
-        /^market:\/\//i.test(url);
-
-      if (isPlayStore) {
-        log("PLAY MARKET SO‘ROVI TO‘XTATILMOQDA:", url);
+      if (
+        /^https:\/\/play\.google\.com\//i.test(url) ||
+        /^market:\/\//i.test(url)
+      ) {
+        log("PLAY MARKET YO‘NALTIRISHI TO‘XTATILDI:", url);
         request.abort().catch(() => {});
         return;
       }
@@ -121,196 +107,87 @@ async function main() {
       request.continue().catch(() => {});
     });
 
-    // Boshlang‘ich sahifani ochish.
-    let response = null;
+    log("1-SAYT OCHILMOQDA:", START_URL);
 
     try {
-      response = await page.goto(START_URL, {
+      const response = await page.goto(START_URL, {
         waitUntil: "domcontentloaded",
         timeout: 45000,
       });
-    } catch (error) {
-      log("SAHIFANI OCHISH XATOSI:", error.message);
+
+      log("BIRINCHI SAHIFA STATUS:", response?.status());
+    } catch (e) {
+      log("BIRINCHI SAHIFA XATOSI:", e.message);
     }
 
-    log(
-      "HTTP STATUS:",
-      response ? response.status() : "JAVOB YO‘Q"
+    log("BIRINCHI SAHIFA URL:", page.url());
+    await screenshot(page, "1_before.png");
+
+    // Tugmani topish.
+    const button = page.getByText(BUTTON_TEXT, {
+      exact: false,
+    }).first();
+
+    try {
+      await button.waitFor({ state: "visible", timeout: 15000 });
+      log("TUGMA TOPILDI:", BUTTON_TEXT);
+    } catch {
+      log("TUGMA TOPILMADI. SAHIFA HTML SAQLANADI.");
+
+      fs.writeFileSync(
+        path.join(__dirname, "page.html"),
+        await page.content(),
+        "utf8"
+      );
+
+      await screenshot(page, "2_middle.png");
+      return;
+    }
+
+    // Tugmani bosish va navigatsiyani kutish.
+    try {
+      await Promise.all([
+        page.waitForNavigation({
+          waitUntil: "domcontentloaded",
+          timeout: 20000,
+        }).catch((e) => {
+          log("NAVIGATSIYA KUTILISHI:", e.message);
+        }),
+        button.click(),
+      ]);
+    } catch (e) {
+      log("TUGMANI BOSISH XATOSI:", e.message);
+    }
+
+    log("BOSISHDAN KEYINGI URL:", page.url());
+
+    // Ikkinchi URL qayd etilgan bo‘lsa, logga yozilgan bo‘ladi.
+    if (secondUrl) {
+      fs.writeFileSync(
+        path.join(__dirname, "second-url.txt"),
+        secondUrl,
+        "utf8"
+      );
+    }
+
+    await screenshot(page, "2_middle.png");
+
+    fs.writeFileSync(
+      path.join(__dirname, "page.html"),
+      await page.content(),
+      "utf8"
     );
 
-    log("HOZIRGI URL:", page.url());
-
-    await new Promise((resolve) => setTimeout(resolve, 2500));
-
-    await saveScreenshot(page, "1_before.png");
-    await saveHtml(page);
-
-    // Kerakli tugma yoki matnni qidirish.
-    let buttonFound = false;
-
-    try {
-      buttonFound = await page.evaluate((targetText) => {
-        const normalize = (text) =>
-          (text || "").replace(/\s+/g, " ").trim();
-
-        const elements = Array.from(
-          document.querySelectorAll(
-            "button, a, [role='button'], input[type='button'], input[type='submit']"
-          )
-        );
-
-        const match = elements.find((element) => {
-          const text = normalize(
-            element.innerText ||
-              element.textContent ||
-              element.value ||
-              element.getAttribute("aria-label")
-          );
-
-          return text.includes(targetText);
-        });
-
-        if (match) {
-          match.scrollIntoView({
-            behavior: "instant",
-            block: "center",
-          });
-
-          match.setAttribute("data-bot-target", "true");
-          return true;
-        }
-
-        // Ayrim saytlar tugma o‘rniga oddiy matn elementidan foydalanadi.
-        const textElements = Array.from(
-          document.querySelectorAll("body *")
-        );
-
-        const textMatch = textElements.find((element) => {
-          const text = normalize(element.innerText || element.textContent);
-
-          return (
-            text.includes(targetText) &&
-            element.children.length < 4
-          );
-        });
-
-        if (textMatch) {
-          textMatch.scrollIntoView({
-            behavior: "instant",
-            block: "center",
-          });
-
-          textMatch.setAttribute("data-bot-target", "true");
-          return true;
-        }
-
-        return false;
-      }, BUTTON_TEXT);
-    } catch (error) {
-      log("TUGMANI QIDIRISH XATOSI:", error.message);
-    }
-
-    if (buttonFound) {
-      log("TUGMA TOPILDI:", BUTTON_TEXT);
-
-      try {
-        await page.locator("[data-bot-target='true']").click({
-          timeout: 10000,
-        });
-
-        log("TUGMA BOSILDI:", BUTTON_TEXT);
-
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-      } catch (error) {
-        log("TUGMANI BOSISH XATOSI:", error.message);
-      }
-    } else {
-      log("TUGMA TOPILMADI:", BUTTON_TEXT);
-      log("SABAB: sahifa boshqa manzilga o‘tgan yoki matn yo‘q.");
-    }
-
-    log("TUGMADAN KEYINGI URL:", page.url());
-
-    await saveScreenshot(page, "2_middle.png");
-    await saveHtml(page);
-
-    // O‘rnatish tugmasini qidirish va bosishga urinish.
-    // Brauzer Android ilovasini haqiqiy telefonga o‘rnata olmaydi.
-    try {
-      const installFound = await page.evaluate(() => {
-        const normalize = (text) =>
-          (text || "").replace(/\s+/g, " ").trim().toLowerCase();
-
-        const installTexts = [
-          "install",
-          "o'rnatish",
-          "o‘rnatish",
-          "установить",
-        ];
-
-        const elements = Array.from(
-          document.querySelectorAll(
-            "button, a, [role='button']"
-          )
-        );
-
-        const match = elements.find((element) => {
-          const text = normalize(
-            element.innerText ||
-              element.textContent ||
-              element.getAttribute("aria-label")
-          );
-
-          return installTexts.some((word) => text.includes(word));
-        });
-
-        if (match) {
-          match.scrollIntoView({
-            behavior: "instant",
-            block: "center",
-          });
-
-          match.setAttribute("data-bot-install", "true");
-          return true;
-        }
-
-        return false;
-      });
-
-      if (installFound) {
-        log("O‘RNATISH TUGMASI TOPILDI");
-
-        await page.locator("[data-bot-install='true']").click({
-          timeout: 10000,
-        });
-
-        log("O‘RNATISH TUGMASI BOSILDI");
-
-        await new Promise((resolve) => setTimeout(resolve, 2500));
-      } else {
-        log("O‘RNATISH TUGMASI TOPILMADI");
-      }
-    } catch (error) {
-      log("O‘RNATISH TUGMASI XATOSI:", error.message);
-    }
-
     log("YAKUNIY URL:", page.url());
+    await screenshot(page, "3_after.png");
 
-    await saveScreenshot(page, "3_after.png");
-    await saveHtml(page);
-
-    log("BOT ISHI TUGADI");
-  } catch (error) {
-    log("BOTDA UMUMIY XATO:", error.stack || error.message);
-    process.exitCode = 1;
+    log("BOT TUGADI");
   } finally {
-    if (browser) {
-      await browser.close().catch(() => {});
-    }
+    await browser.close();
   }
 }
 
-main().catch((error) => {
-  console.error("BOTNI ISHGA TUSHIRISHDA XATO:", error);
+main().catch((e) => {
+  log("UMUMIY XATO:", e.stack || e.message);
   process.exitCode = 1;
 });
