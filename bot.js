@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 
 async function runBot() {
-    console.log("Bot ishga tushdi...");
+    console.log("Bot Android rejimida ishga tushdi...");
 
     const browser = await puppeteer.launch({
         headless: true,
@@ -10,7 +10,6 @@ async function runBot() {
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--disable-gpu',
-            '--window-size=390,844',
             '--disable-blink-features=AutomationControlled'
         ]
     });
@@ -18,31 +17,23 @@ async function runBot() {
     try {
         const page = await browser.newPage();
 
-        // Mobil qurilma sozlamalari
-        await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
-        await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1');
-
-        // Sayt avtomatik ravishda boshqa joyga sakrab ketishining oldini olish uchun meta refresh'larni bloklash
-        await page.evaluateOnNewDocument(() => {
-            const observer = new MutationObserver(() => {
-                document.querySelectorAll('meta[http-equiv="refresh"]').forEach(m => m.remove());
-            });
-            observer.observe(document, { childList: true, subtree: true });
-        });
+        // Android Pixel 5 qurilmasini to'liq emulyatsiya qilish (sayt bloklamasligi uchun)
+        const androidDevice = puppeteer.devices['Pixel 5'];
+        await page.emulate(androidDevice);
 
         console.log("Ssilkaga kirilmoqda...");
         await page.goto('https://promo-bot-ucad.onrender.com/r/JT_suzcNFZWTL8QfPWCD6Q', { 
-            waitUntil: 'domcontentloaded', 
+            waitUntil: 'networkidle2', 
             timeout: 60000 
         });
 
-        // 1. BEFORE: Darhol birinchi sahifani (tugmali sahifani) saqlab qolish
+        // 1. BEFORE: Tugmali boshlang'ich sahifani ushlab qolish va saqlash
         await page.screenshot({ path: '1_before.png', fullPage: true });
         console.log("1_before.png (tugmali sahifa) muvaffaqiyatli saqlandi.");
 
-        console.log('"Нафақа ёшига етмаган фуқаро" tugmasi qidirilmoqda va bosilmoqda...');
+        console.log('"Нафақа ёшига етмаган фуқаро" tugmasi qidirilmoqda...');
 
-        // Tugmani topib darhol bosish
+        // Tugmani topib bosish
         const clicked = await page.evaluate(() => {
             const elements = Array.from(document.querySelectorAll('div, button, span, a, p'));
             const target = elements.find(el => el.textContent && el.textContent.trim().includes('Нафақа ёшига етмаган фуқаро'));
