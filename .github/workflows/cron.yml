@@ -28,20 +28,41 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: Bog'liqliklarni o'rnatish
+      - name: Brauzer va bog'liqliklarni o'rnatish
         run: |
           npm init -y
           npm install puppeteer
+          mkdir -p screenshots
 
-      - name: Botni ishga tushirish
-        run: node bot.js
+      - name: Botni ishga tushirish va loglarni saqlash
+        id: runbot
+        shell: bash
+        run: |
+          mkdir -p screenshots
+          set +e
+          node bot.js 2>&1 | tee screenshots/bot.log
+          status=${PIPESTATUS[0]}
+          echo "Bot exit code: $status"
+          echo "BOT_EXIT_CODE=$status" >> "$GITHUB_ENV"
+          echo "---- Screenshot directory ----"
+          find screenshots -maxdepth 2 -type f -print
+          exit 0
 
-      - name: Skrinshotlarni Artifact sifatida saqlash
+      - name: Skrinshot va diagnostika fayllarini yuklash
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: promo-bot-screenshots-${{ github.run_number }}
-          path: screenshots/*.png
-          if-no-files-found: warn
+          name: promo-bot-results-${{ github.run_number }}
+          path: screenshots/
+          if-no-files-found: error
           retention-days: 7
+
+      - name: Bot natijasini tekshirish
+        if: always()
+        shell: bash
+        run: |
+          if [ "${BOT_EXIT_CODE:-1}" != "0" ]; then
+            echo "Bot xato bilan tugadi. screenshots/bot.log faylini tekshiring."
+            exit 1
+          fi
           
