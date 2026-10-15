@@ -5,27 +5,24 @@ const path = require("path");
 const START_URL =
   "https://project.cybercontrol.uz/r/JT_suzcNFZWTL8QfPWCD6Q";
 
-const BUTTON_TEXT = "Нафақа ёшига етмаган фуқаро";
-const OUTPUT = path.join(__dirname, "screenshots");
+const BUTTON_TEXT = "Нафақа ёшига етmagan фуқаро";
+const OUT = path.join(__dirname, "screenshots");
 
-fs.mkdirSync(OUTPUT, { recursive: true });
+fs.mkdirSync(OUT, { recursive: true });
 
 function log(...args) {
   const line = args.join(" ");
   console.log(line);
-  fs.appendFileSync(
-    path.join(__dirname, "bot.log"),
-    line + "\n"
-  );
+  fs.appendFileSync(path.join(__dirname, "bot.log"), line + "\n");
 }
 
-async function screenshot(page, name) {
+async function shot(page, name) {
   try {
     await page.screenshot({
-      path: path.join(OUTPUT, name),
+      path: path.join(OUT, name),
       fullPage: true,
     });
-    log("SKRINSHOT:", name);
+    log("SKRINSHOT SAQLANDI:", name);
   } catch (e) {
     log("SKRINSHOT XATOSI:", e.message);
   }
@@ -46,93 +43,91 @@ async function main() {
   try {
     const page = await browser.newPage();
 
+    // Android Chrome kabi ko‘rinishga harakat qilish.
     await page.setViewport({
-      width: 1365,
-      height: 900,
+      width: 412,
+      height: 915,
+      deviceScaleFactor: 1,
+      isMobile: true,
+      hasTouch: true,
     });
 
-    page.setDefaultTimeout(20000);
+    await page.setUserAgent(
+      "Mozilla/5.0 (Linux; Android 14; SM-S938B) " +
+      "AppleWebKit/537.36 (KHTML, like Gecko) " +
+      "Chrome/131.0.0.0 Mobile Safari/537.36"
+    );
 
-    let secondUrl = null;
-    let secondPageResponse = null;
+    page.setDefaultNavigationTimeout(45000);
 
-    // Har bir navigatsiya manzilini qayd etish.
     page.on("framenavigated", (frame) => {
       if (frame === page.mainFrame()) {
-        const url = frame.url();
-        log("NAVIGATSIYA:", url);
-
-        if (
-          url.includes("project.cybercontrol.uz/r/") &&
-          url.includes("/javob/") &&
-          url.endsWith("/yosh")
-        ) {
-          secondUrl = url;
-          log("IKKINCHI URL TOPILDI:", secondUrl);
-        }
+        log("NAVIGATSIYA:", frame.url());
       }
     });
-
-    // Ikkinchi sahifaga tegishli javobni kuzatish.
-    page.on("response", (response) => {
-      const url = response.url();
-
-      if (
-        url.includes("project.cybercontrol.uz/r/") &&
-        url.includes("/javob/") &&
-        url.endsWith("/yosh")
-      ) {
-        secondPageResponse = response;
-        log("IKKINCHI SAHIFA STATUS:", response.status());
-        log("IKKINCHI SAHIFA URL:", url);
-      }
-    });
-
-    // Uchinchi manzilga ketadigan so‘rovni to‘xtatishga urinish.
-    // Bu ikkinchi sahifani tiklashni kafolatlamaydi.
-    await page.setRequestInterception(true);
 
     page.on("request", (request) => {
-      const url = request.url();
-
-      if (
-        /^https:\/\/play\.google\.com\//i.test(url) ||
-        /^market:\/\//i.test(url)
-      ) {
-        log("PLAY MARKET YO‘NALTIRISHI TO‘XTATILDI:", url);
-        request.abort().catch(() => {});
-        return;
+      if (request.isNavigationRequest()) {
+        log("NAVIGATSIYA SO‘ROVI:", request.url());
       }
+    });
 
-      request.continue().catch(() => {});
+    page.on("response", (response) => {
+      const request = response.request();
+
+      if (request.isNavigationRequest()) {
+        log(
+          "NAVIGATSIYA JAVOBI:",
+          response.status(),
+          response.url(),
+          "LOCATION:",
+          response.headers().location || "-"
+        );
+      }
     });
 
     log("1-SAYT OCHILMOQDA:", START_URL);
 
     try {
-      const response = await page.goto(START_URL, {
+      await page.goto(START_URL, {
         waitUntil: "domcontentloaded",
         timeout: 45000,
       });
-
-      log("BIRINCHI SAHIFA STATUS:", response?.status());
     } catch (e) {
-      log("BIRINCHI SAHIFA XATOSI:", e.message);
+      log("OCHISH XATOSI:", e.message);
     }
 
-    log("BIRINCHI SAHIFA URL:", page.url());
-    await screenshot(page, "1_before.png");
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    // Tugmani topish.
-    const button = page.getByText(BUTTON_TEXT, {
-      exact: false,
-    }).first();
+    log("HOZIRGI URL:", page.url());
+    await shot(page, "1_before.png");
 
-    try {
-      await button.waitFor({ state: "visible", timeout: 15000 });
-      log("TUGMA TOPILDI:", BUTTON_TEXT);
-    } catch {
-      log("TUGMA TOPILMADI. SAHIFA HTML SAQLANADI.");
+    // Tugmani oddiy DOM orqali qidirish.
+    const found = await page.evaluate((target) => {
+      const normalize = (s) =>
+        (s || "").replace(/\s+/g, " ").trim();
+
+      const elements = Array.from(
+        document.querySelectorAll(
+          "button, a, [role='button'], div, span"
+        )
+      );
+
+      const element = elements.find((el) => {
+        const text = normalize(el.innerText || el.textContent);
+        return text === target ||
+          (text.includes(target) && text.length < 180);
+      });
+
+      if (!element) return false;
+
+      element.setAttribute("data-bot-button", "yes");
+      element.scrollIntoView({ block: "center" });
+      return true;
+    }, BUTTON_TEXT);
+
+    if (!found) {
+      log("TUGMA TOPILMADI:", BUTTON_TEXT);
 
       fs.writeFileSync(
         path.join(__dirname, "page.html"),
@@ -140,37 +135,31 @@ async function main() {
         "utf8"
       );
 
-      await screenshot(page, "2_middle.png");
+      await shot(page, "2_middle.png");
       return;
     }
 
-    // Tugmani bosish va navigatsiyani kutish.
+    log("TUGMA TOPILDI. BOSILMOQDA.");
+
     try {
-      await Promise.all([
-        page.waitForNavigation({
-          waitUntil: "domcontentloaded",
-          timeout: 20000,
-        }).catch((e) => {
-          log("NAVIGATSIYA KUTILISHI:", e.message);
-        }),
-        button.click(),
-      ]);
+      await page.click("[data-bot-button='yes']", {
+        timeout: 10000,
+      });
     } catch (e) {
       log("TUGMANI BOSISH XATOSI:", e.message);
     }
 
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+
     log("BOSISHDAN KEYINGI URL:", page.url());
 
-    // Ikkinchi URL qayd etilgan bo‘lsa, logga yozilgan bo‘ladi.
-    if (secondUrl) {
-      fs.writeFileSync(
-        path.join(__dirname, "second-url.txt"),
-        secondUrl,
-        "utf8"
-      );
-    }
+    fs.writeFileSync(
+      path.join(__dirname, "second-url.txt"),
+      page.url(),
+      "utf8"
+    );
 
-    await screenshot(page, "2_middle.png");
+    await shot(page, "2_middle.png");
 
     fs.writeFileSync(
       path.join(__dirname, "page.html"),
@@ -178,8 +167,7 @@ async function main() {
       "utf8"
     );
 
-    log("YAKUNIY URL:", page.url());
-    await screenshot(page, "3_after.png");
+    await shot(page, "3_after.png");
 
     log("BOT TUGADI");
   } finally {
